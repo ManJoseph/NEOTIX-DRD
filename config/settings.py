@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'desk',
 ]
 
 MIDDLEWARE = [
@@ -133,3 +134,6 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
+
+# Use our user model, which adds the business role.
+AUTH_USER_MODEL = "desk.User"

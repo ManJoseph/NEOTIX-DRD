@@ -11,8 +11,12 @@ Frontend: a small React application (to be added later).
 4. Create the PostgreSQL database named in `.env`.
 5. Check configuration: `.\.venv\Scripts\python.exe manage.py check`
 
-Models, migrations, endpoints, seed accounts, and tests will be added in the next stages.
-Do not run initial migrations before we configure the project user model.
+6. Apply migrations: `.\.venv\Scripts\python.exe manage.py migrate`
+7. Run tests: `.\.venv\Scripts\python.exe manage.py test desk`
+8. Create an application admin: `.\.venv\Scripts\python.exe manage.py createsuperuser`
+
+The custom user model is configured. Endpoints and seed accounts will be added in later stages.
+Django tests use a separate test database; the local database user needs permission to create it.
 
 Never commit `.env`; it contains local secrets.
 
