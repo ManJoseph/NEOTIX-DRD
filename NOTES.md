@@ -86,3 +86,9 @@ assignments with readable errors. This pre-check cannot prevent concurrent claim
 the upcoming view will also handle database uniqueness errors safely.
 RequestStatusSerializer accepts known status names only; transition rules and actor
 permissions remain for the upcoming workflow view. Serializers do not yet expose URLs.
+
+Admin account input now uses separate creation and update serializers. Creation
+uses Django password validators and create_user to hash passwords; password is
+write-only. Only role and is_active are writable in the update serializer. Neither
+serializer accepts Django is_superuser/is_staff flags. These serializers do not
+check who is calling them: their views must be admin-only. There is no public signup.

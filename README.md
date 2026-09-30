@@ -27,3 +27,33 @@ Protected requests will send `Authorization: Token <token>`.
 The login endpoint and custom user roles will be added in later stages.
 DRF stores tokens in a database table; this is a simple opaque token, not a JWT.
 Use HTTPS in production. Built-in DRF tokens do not expire automatically.
+
+## Testing serializers from the terminal
+
+Run all serializer tests:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_serializers --verbosity 2
+```
+
+Run one test class:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_serializers.AccountSerializerTests --verbosity 2
+```
+
+Explore input validation interactively (does not save records unless you call save):
+
+```powershell
+.\.venv\Scripts\python.exe manage.py shell
+```
+
+```python
+from desk.serializers import DatasetRequestSerializer
+serializer = DatasetRequestSerializer(data={"task_name": "Pick Cup", "episodes_requested": 0, "deadline": "2026-10-03"})
+serializer.is_valid()
+serializer.errors
+```
+
+Change the count to 3, construct a new serializer, run is_valid again, and inspect
+serializer.validated_data. Type exit() to leave the shell.

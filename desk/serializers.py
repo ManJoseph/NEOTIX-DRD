@@ -1,3 +1,6 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from rest_framework import serializers
 
 from .models import (
@@ -76,3 +79,35 @@ class StatusChangeSerializer(serializers.ModelSerializer):
 class RequestStatusSerializer(serializers.Serializer):
     # This checks the status name; the view will check transition order and role.
     status = serializers.ChoiceField(choices=RequestStatus.choices)
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "name", "organisation", "role", "password"]
+        read_only_fields = ["id"]
+
+    def validate(self, data):
+        # Give Django account details so it can reject a similar/weak password.
+        user = User(
+            username=data["username"], email=data["email"], name=data["name"]
+        )
+        try:
+            validate_password(data["password"], user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": error.messages})
+        return data
+
+    def create(self, validated_data):
+        # create_user hashes the password; ordinary objects.create would not.
+        return User.objects.create_user(**validated_data)
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    # Admin account updates are limited to the two required operations.
+    class Meta:
+        model = User
+        fields = ["id", "role", "is_active"]
+        read_only_fields = ["id"]

@@ -117,3 +117,82 @@ class SerializerTests(TestCase):
         serializer = RequestStatusSerializer(data={"status": "cancelled"})
         self.assertFalse(serializer.is_valid())
         self.assertIn("status", serializer.errors)
+
+class AccountSerializerTests(TestCase):
+    def account_input(self):
+        return {
+            "username": "new-client@example.com",
+            "email": "new-client@example.com",
+            "name": "New Client",
+            "organisation": "Example Robotics",
+            "password": "A-long-test-password!42",
+        }
+
+    def test_creation_hashes_password_and_excludes_it_from_output(self):
+        from .serializers import UserCreateSerializer
+
+        data = self.account_input()
+        serializer = UserCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        user = serializer.save()
+        self.assertTrue(user.check_password(data["password"]))
+        self.assertNotEqual(user.password, data["password"])
+        self.assertEqual(user.role, "client")
+        self.assertNotIn("password", serializer.data)
+
+    def test_weak_password_returns_validation_error(self):
+        from .serializers import UserCreateSerializer
+
+        data = self.account_input()
+        data["password"] = "123"
+        serializer = UserCreateSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("password", serializer.errors)
+
+    def test_duplicate_username_and_email_return_validation_errors(self):
+        from .serializers import UserCreateSerializer
+
+        data = self.account_input()
+        User.objects.create_user(
+            username=data["username"], email=data["email"], name=data["name"],
+        )
+        serializer = UserCreateSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("username", serializer.errors)
+        self.assertIn("email", serializer.errors)
+
+    def test_creation_cannot_set_django_superuser_flags(self):
+        from .serializers import UserCreateSerializer
+
+        data = self.account_input()
+        data.update({"is_superuser": True, "is_staff": True, "role": "operator"})
+        serializer = UserCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        user = serializer.save()
+        self.assertEqual(user.role, "operator")
+        self.assertFalse(user.is_superuser)
+        self.assertFalse(user.is_staff)
+
+    def test_update_changes_role_and_active_state_only(self):
+        from .serializers import UserUpdateSerializer
+
+        user = User.objects.create_user(
+            username="existing", email="existing@example.com", name="Existing User",
+        )
+        serializer = UserUpdateSerializer(user, data={
+            "role": "operator", "is_active": False,
+            "username": "changed", "is_superuser": True,
+        }, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        user = serializer.save()
+        self.assertEqual(user.role, "operator")
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.username, "existing")
+        self.assertFalse(user.is_superuser)
+
+    def test_update_rejects_unknown_role(self):
+        from .serializers import UserUpdateSerializer
+
+        serializer = UserUpdateSerializer(data={"role": "owner"}, partial=True)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("role", serializer.errors)
