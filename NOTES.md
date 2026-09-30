@@ -92,3 +92,20 @@ uses Django password validators and create_user to hash passwords; password is
 write-only. Only role and is_active are writable in the update serializer. Neither
 serializer accepts Django is_superuser/is_staff flags. These serializers do not
 check who is calling them: their views must be admin-only. There is no public signup.
+
+## Authentication API stage
+
+APIView classes use explicit get/post/patch methods. Login uses Django authenticate
+and reuses an existing DRF token. Invalid credentials and inactive users get the
+same 401 response. Logout deletes the current token. Admin-only permission checks
+the business role, not is_staff or is_superuser. Deactivation revokes the token;
+role changes are effective on subsequent requests because authentication reloads
+the user. Admins cannot deactivate/demote themselves. Account lists are currently
+unpaginated, acceptable for the small user set; pagination is a next improvement.
+
+Login throttling limits attempts per IP using Django's local-memory cache. This
+is a development safeguard, not full brute-force protection. A multi-process
+production deployment needs shared cache and edge rate limiting; DRF throttling
+is approximate under concurrency. There is one token per user, so logout affects
+all clients using it. Login endpoint disables token authentication to allow login
+even if a caller sends a stale token. Seed users are still a later stage.

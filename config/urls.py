@@ -1,2 +1,5 @@
-# API routes will be added when we build the views.
-urlpatterns = []
+from django.urls import include, path
+
+urlpatterns = [
+    path("api/", include("desk.urls")),
+]

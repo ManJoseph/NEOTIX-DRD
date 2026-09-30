@@ -111,3 +111,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "role", "is_active"]
         read_only_fields = ["id"]
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
