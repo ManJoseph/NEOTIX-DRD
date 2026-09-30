@@ -70,3 +70,19 @@ to permissions. django_migrations records migration names and application times;
 django_content_type identifies models; authtoken_token connects a token to a user.
 There is no auth_user table because AUTH_USER_MODEL selects desk.User instead.
 There are no Django admin or session tables.
+
+## Serializer stage
+
+Serializers use explicit field lists. User output excludes passwords and Django
+permission flags. Episode and history serializers are output-only. Request input
+can set task, count, deadline, and notes; owner, status, and timestamps are read-only.
+Read-only input is ignored by DRF. The upcoming view must supply the authenticated
+client when saving and write initial history in the same transaction.
+Task names are lowercased and internal whitespace is collapsed; import and episode
+filtering will use the same convention. Dates are checked for valid date syntax;
+we have not imposed a rule against past deadlines because the brief does not require it.
+Assignment input accepts only an episode id. It rejects bad quality and existing
+assignments with readable errors. This pre-check cannot prevent concurrent claims;
+the upcoming view will also handle database uniqueness errors safely.
+RequestStatusSerializer accepts known status names only; transition rules and actor
+permissions remain for the upcoming workflow view. Serializers do not yet expose URLs.
