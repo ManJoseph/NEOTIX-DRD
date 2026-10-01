@@ -24,7 +24,40 @@ An episode can belong to only one current assignment. Only good or usable episod
 
 The backend uses Python, Django REST Framework, and PostgreSQL. It includes token authentication, account management, requests, assignments, repeat-safe CSV import, date-range analytics, health checks, structured logs, migrations, and automated tests.
 
-The React frontend provides login/logout, client request creation/review, operator request and assignment workflows, and admin account creation. A single PowerShell command prepares and starts the local system; follow the running guide. Demo accounts are not seeded: create your own first admin and then client/operator accounts.
+The React frontend provides login/logout, client request creation/review, operator request and assignment workflows, and admin account creation. A single PowerShell command prepares and starts the local system; follow the running guide. Startup creates development-only reviewer accounts with generated local passwords; existing accounts are never reset.
+
+## Quick start and tests
+
+On Windows, install Python 3.13, Node.js 22.12+ in the 22.x line, and PostgreSQL, then clone the repository and run this command from its root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+On the first run, enter your local PostgreSQL connection details. The command creates `.env`, the database if missing, applies migrations, seeds reviewer accounts, installs/builds React, and starts both servers. Open `http://127.0.0.1:5173`. Keep the terminal open; Ctrl+C stops the app servers. For alternate ports and troubleshooting, see the [running guide](docs/RUNNING.md).
+
+Run all backend tests with:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk --noinput
+```
+
+The database user needs permission to create Django's separate test database. CI also runs these tests and builds React.
+
+## Reviewer login credentials
+
+| Username | Role | Password |
+| --- | --- | --- |
+| reviewer-admin | admin | Generated at startup; see local credential file below |
+| reviewer-operator | operator | Generated at startup; see local credential file below |
+| reviewer-client-a | client | Generated at startup; see local credential file below |
+| reviewer-client-b | client | Generated at startup; see local credential file below |
+
+Each password is recorded in `.run/reviewer-accounts.json` on your machine. Open that local file after startup to obtain the credentials; it is ignored by Git and is not uploaded. Passwords are hashed in PostgreSQL, are not printed to startup logs, and are preserved on repeated starts. Seeding requires `DJANGO_DEBUG=True` and is for local assessment review only. If a username already exists without its recorded password, it is left unchanged and the file shows null; use its existing password. Import `seed/episodes.csv` through the operator screen to populate inventory. No sample requests are created automatically.
+
+## Analytics with 5 million episodes
+
+Analytics groups/counts in PostgreSQL and calculates the median using `percentile_cont`; Python receives summaries rather than millions of records. Date/task indexes help relevant filters, but broad ranges still require database scans and aggregation. At that volume, measure query plans and consider cached daily summaries or a partial index for good episodes. No 5-million-row benchmark is claimed. Details are in the [backend guide](docs/BACKEND.md#analytics-health-and-logs).
 
 ## Documentation and useful files
 

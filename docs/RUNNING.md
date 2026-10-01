@@ -16,7 +16,7 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 
 The execution policy override applies only to this process. The script creates a virtual environment if needed, installs dependencies, and creates an ignored local `.env` if missing. It prompts for your PostgreSQL connection details without echoing the password and generates a local Django secret. Existing `.env` values are preserved. It starts an installed PostgreSQL Windows service if stopped, creates the named database only if absent, applies migrations, and checks Django.
 
-When no active admin exists, the normal `createsuperuser` command prompts for your own account. No demo accounts or published credentials are seeded. Create clients/operators through the admin frontend after signing in. This deliberately differs from the assignment's seed-user request, following the candidate's preference.
+Startup seeds four reviewer accounts (admin, operator, and two clients). Their randomly generated passwords are in ignored `.run/reviewer-accounts.json`; README lists the usernames and how to obtain passwords. Repeated startup preserves existing users and credentials. Seeding is allowed only with DJANGO_DEBUG=True. You can create additional accounts through the admin screen or createsuperuser.
 
 The script installs frontend dependencies from the lockfile, builds React, and starts Django and Vite. Open `http://127.0.0.1:5173`. Keep the terminal open; Ctrl+C stops the servers started by this script. PostgreSQL remains running. Logs are in ignored `.run/*.log`. Django runs without autoreload in this launcher; restart it after backend code changes. Frontend edits still update through Vite.
 
@@ -40,7 +40,7 @@ To verify configuration, database setup, migrations, and the frontend build with
 powershell -ExecutionPolicy Bypass -File .\start.ps1 -CheckOnly
 ```
 
-An active admin must already exist for CheckOnly/SmokeTest. To start both servers temporarily, check the page and API proxy, and shut down only those servers:
+CheckOnly/SmokeTest also run the idempotent reviewer-account setup. To start both servers temporarily, check the page and API proxy, and shut down only those servers:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start.ps1 -SmokeTest -BackendPort 8001 -FrontendPort 5174

@@ -29,7 +29,7 @@ Create an empty PostgreSQL database matching `DB_NAME`, using pgAdmin or Postgre
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-`createsuperuser` prompts for your own username, email, and password and assigns the application `admin` role. There is no Django admin website. Use the admin API to create client/operator accounts. Demo users are not seeded and there are no shared login credentials. `.env`, `.venv`, and local log files are ignored by Git.
+`createsuperuser` prompts for your own username, email, and password and assigns the application `admin` role. There is no Django admin website. Use the admin API to create client/operator accounts. The whole-system launcher seeds reviewer users and records generated passwords locally; see README. Manual backend setup can instead use createsuperuser. `.env`, `.venv`, and local log files are ignored by Git.
 
 Base URL: `http://127.0.0.1:8000`. Subsequent backend starts need only the `runserver` command while PostgreSQL is running. On Linux/macOS, create a virtual environment with `python3 -m venv .venv` and substitute `.venv/bin/python` for the Windows Python path.
 

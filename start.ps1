@@ -40,12 +40,8 @@ try {
     & $pythonPath manage.py check
     Assert-CommandSucceeded "Django configuration check"
 
-    & $pythonPath manage.py shell -c "from desk.models import User; import sys; sys.exit(0 if User.objects.filter(role='admin', is_active=True).exists() else 1)"
-    if ($LASTEXITCODE -ne 0) {
-        if ($CheckOnly -or $SmokeTest) { throw "No active admin. Run start.ps1 normally to create one interactively." }
-        & $pythonPath manage.py createsuperuser
-        Assert-CommandSucceeded "Initial admin creation"
-    }
+    & $pythonPath manage.py seed_reviewers
+    Assert-CommandSucceeded "Reviewer account setup"
 
     Push-Location (Join-Path $projectRoot "frontend")
     try {
@@ -88,7 +84,19 @@ try {
                 else { throw }
             }
             if (-not $validated) { throw "Expected Django login validation through the frontend proxy." }
-            Write-Host "Startup smoke test passed: frontend page and Django API proxy."
+            $accounts = Get-Content -LiteralPath "$projectRoot\.run\reviewer-accounts.json" -Raw | ConvertFrom-Json
+            foreach ($entry in $accounts.PSObject.Properties) {
+                $account = $entry.Value
+                if (-not $account.password) { continue }
+                $loginBody = @{ username = $account.username; password = $account.password } | ConvertTo-Json
+                $login = Invoke-RestMethod -Uri "http://127.0.0.1:$FrontendPort/api/auth/login/" -Method Post -ContentType "application/json" -Body $loginBody -TimeoutSec 5
+                if ($login.user.role -ne $account.role) { throw "Reviewer role verification failed." }
+                $headers = @{ Authorization = "Token $($login.token)" }
+                $health = Invoke-RestMethod -Uri "http://127.0.0.1:$FrontendPort/health" -Headers $headers -TimeoutSec 5
+                if ($health.database -ne "ok") { throw "Database health verification failed." }
+                Invoke-WebRequest -Uri "http://127.0.0.1:$FrontendPort/api/auth/logout/" -Method Post -Headers $headers -UseBasicParsing -TimeoutSec 5 | Out-Null
+            }
+            Write-Host "Startup smoke test passed: frontend, API proxy, seeded logins/roles, database health, and logout."
         } else {
             while (-not $backendProcess.HasExited -and -not $frontendProcess.HasExited) { Start-Sleep -Seconds 1 }
             throw "A development server exited. Inspect .run logs."

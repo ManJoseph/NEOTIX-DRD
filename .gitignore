@@ -12,3 +12,6 @@ seed/users.json
 # Frontend dependencies and build output
 node_modules/
 frontend/dist/
+
+# Generated local reviewer credentials and runtime files
+.run/

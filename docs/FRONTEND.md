@@ -24,7 +24,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. Log in using an account created through Django's `createsuperuser` command or the admin API. There are no demo passwords. Use `npm run build` to check that the frontend compiles; it creates ignored `frontend/dist` output. Use `npm install` when intentionally changing dependencies; commit the updated lockfile.
+Open `http://127.0.0.1:5173`. Log in using an account created through Django's `createsuperuser` command or the admin API. Reviewer usernames and the local generated-password file are described in README. Use `npm run build` to check that the frontend compiles; it creates ignored `frontend/dist` output. Use `npm install` when intentionally changing dependencies; commit the updated lockfile.
 
 ## Files and concepts
 
@@ -70,7 +70,7 @@ Manual checks: create a request with valid fields; verify count/date errors and 
 
 ## Create accounts to test the client screen
 
-1. If you have no admin account yet, run `manage.py createsuperuser` using the backend guide's Python command. This is interactive: choose your own username, email, and password. Do not put them in source code.
+1. Whole-system startup seeds reviewer-admin; obtain its generated password from the local credential file described in README. For manual backend setup, you can instead run createsuperuser. Do not put personal credentials in source code.
 2. Sign in to the frontend as that admin. The account creation form is shown only to admins; Django independently enforces admin permissions.
 3. Enter a client's username, email, name, optional organisation, role Client, and a strong password. A success message confirms creation and refreshes the account list. Passwords are never returned in account output or stored in browser storage. Validation errors preserve account fields but clear the password for re-entry.
 4. Sign out, then sign in using that client's username/password to test request creation and listing.
