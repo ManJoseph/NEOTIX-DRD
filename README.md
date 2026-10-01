@@ -110,3 +110,41 @@ Run authentication and admin endpoint tests:
 ```powershell
 .\.venv\Scripts\python.exe manage.py test desk.test_auth_api --verbosity 2
 ```
+
+## Request workflow API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET / POST | /api/requests/ | List visible requests / client creates a request |
+| GET | /api/requests/<id>/ | View a visible request |
+| GET | /api/requests/<id>/history/ | View chronological status history |
+| POST | /api/requests/<id>/status/ | Change status according to role and workflow |
+
+Clients see only their own requests; operators/admins see all. Only clients create
+requests. Request lists return count, next, previous, and results, with 50 records
+per page; use ?page=2 for the next page. Other clients' request IDs return 404.
+Request editing and deletion are not offered in this version.
+
+Example request creation, using a client token:
+
+```json
+{"task_name": "pick cup", "episodes_requested": 3, "deadline": "2026-10-03", "notes": "Training data"}
+```
+
+POST to /api/requests/<id>/status/ with an operator/admin token:
+
+```json
+{"status": "in_progress"}
+```
+
+Delivery uses {"status": "delivered"} and requires at least the requested count
+of assigned episodes. Assignment endpoints will be added in the next stage.
+The owning client reviews delivery with {"status": "accepted"} or
+{"status": "rejected"}. An operator/admin can return a rejected request to
+in_progress for rework. Status responses return the updated request.
+
+Run workflow tests:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_request_api --verbosity 2
+```

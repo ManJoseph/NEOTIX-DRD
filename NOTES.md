@@ -109,3 +109,22 @@ production deployment needs shared cache and edge rate limiting; DRF throttling
 is approximate under concurrency. There is one token per user, so logout affects
 all clients using it. Login endpoint disables token authentication to allow login
 even if a caller sends a stale token. Seed users are still a later stage.
+
+## Request workflow stage
+
+One shared queryset helper restricts client access across request lists, detail,
+history, and transitions. Other clients' records return 404. Operators/admins can
+view all records but cannot create client requests or accept/reject deliveries.
+Request creation writes a submission event atomically. Status changes lock the
+request row with select_for_update, validate role and transition order, check the
+assigned count for delivery, and save status plus history in one transaction.
+Failure to write history rolls back the request creation or status update.
+
+The upcoming assignment/removal views must lock the same request row before
+changing its assignments; this coordinates those actions with delivery checks.
+The delivery threshold is at least the requested count. First delivery time is
+retained on rework. Request lists are paginated by 50. History is chronological
+and currently unpaginated because the expected event count per request is small.
+There are no generic update/delete request routes that could bypass the workflow.
+Tests cover every pair of statuses for each business role, ownership, the delivery
+threshold, rework timestamps, pagination, and rollback if audit creation fails.
