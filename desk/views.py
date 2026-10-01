@@ -10,11 +10,13 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .analytics import build_analytics
 from .csv_import import import_episodes
 from .models import Assignment, DatasetRequest, Episode, EpisodeQuality, RequestStatus, StatusChange, User, UserRole
 from .pagination import DeskPagination
 from .permissions import IsAdmin, IsOperator
 from .serializers import (
+    AnalyticsRangeSerializer,
     AssignmentSerializer,
     DatasetRequestSerializer,
     EpisodeSerializer,
@@ -302,4 +304,17 @@ class EpisodeImportView(APIView):
             report = import_episodes(text)
         except ValueError as error:
             raise ValidationError({"file": str(error)})
+        return Response(report)
+
+
+class AnalyticsView(APIView):
+    permission_classes = [IsOperator]
+
+    def get(self, request):
+        serializer = AnalyticsRangeSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        report = build_analytics(
+            serializer.validated_data["start_date"],
+            serializer.validated_data["end_date"],
+        )
         return Response(report)

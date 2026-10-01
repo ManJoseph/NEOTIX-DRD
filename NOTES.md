@@ -179,3 +179,28 @@ While implementing decimal validation, we identified that the model's minimum
 validator used the float 0.01. Binary floats are not exact decimals. We changed it
 to Decimal("0.01") and added a test that an exact 0.01-second duration passes.
 The change is captured in migration 0002; the stored field type is unchanged.
+
+## Analytics stage
+
+The operator/admin-only report uses inclusive Kigali dates and half-open timestamp
+filters: start midnight <= timestamp < midnight after end_date. Requests use their
+submission date; status counts are current status. Median is submission to first
+delivery for that cohort, regardless of eventual delivery date. Null delivery times
+are excluded. Top tasks use good episodes recorded in the selected range.
+
+Three ORM group/count queries and one parameterized PostgreSQL percentile_cont
+query calculate the report. Python handles only aggregate rows. We retained a short
+explicit SQL median query because Django has no built-in median aggregate; SQL
+parameters prevent date values from becoming executable query text. Ties in top
+five task counts are sorted by task name. Missing status groups are filled with zero.
+
+At 5 million episodes, broad date ranges still cost database scans/aggregation;
+indexing does not make global counts constant time. Measure query plans, consider
+a partial good-episode date/task index, and cache or precompute frequently requested
+daily totals. Median sorting and database IO are likely analytics bottlenecks.
+Tests cover odd/even medians, date boundaries, empty reports, access rules, and SQL
+aggregation. No large-volume benchmark has been performed.
+
+Per the candidate's later instruction, demo users are not published or seeded.
+Normal createsuperuser plus admin API account creation is the testing workflow.
+seed/users.json remains local and ignored by Git.

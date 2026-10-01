@@ -15,7 +15,7 @@ Frontend: a small React application (to be added later).
 7. Run tests: `.\.venv\Scripts\python.exe manage.py test desk`
 8. Create an application admin: `.\.venv\Scripts\python.exe manage.py createsuperuser`
 
-The custom user model is configured. See the endpoint sections below. Automated seed accounts will be added in a later stage.
+The custom user model is configured. See the endpoint sections below. Create the first admin with createsuperuser, then create other accounts through the admin API. Demo accounts are not automatically seeded.
 Django tests use a separate test database; the local database user needs permission to create it.
 
 Never commit `.env`; it contains local secrets.
@@ -214,4 +214,37 @@ when quoted fields contain line breaks.
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py test desk.test_csv_import --verbosity 2
+```
+
+## Analytics API and scale
+
+GET /api/analytics/?start_date=2026-08-01&end_date=2026-09-30 with an operator/admin
+token. Both dates are required and inclusive in Africa/Kigali. Episodes are selected
+by recorded_at; requests are selected by created_at (submission cohort). Request
+status counts reflect their current status, not historical status at end_date.
+The median uses submission to first delivery for selected requests that have been
+delivered, even if delivery occurred after end_date. Never-delivered requests are
+excluded from the median; an empty delivered set returns null.
+
+The response includes episodes_per_day_per_robot, request_fulfilment
+(counts_by_status and median_delivery_seconds), and top_good_tasks. Statuses with
+no requests return zero. Only days/robots with recordings are listed. Good-task
+counts use the recording date range and ties are ordered alphabetically.
+
+All four report queries aggregate in PostgreSQL. Django's ORM produces GROUP BY
+and COUNT queries; the median uses PostgreSQL percentile_cont(0.5) with parameterized
+SQL. Python receives summary rows, not all underlying episodes or requests.
+
+At 5 million episodes, Python memory stays proportional to summary size, but the
+database still scans/aggregates matching rows. Narrow date ranges can use the
+recorded_at/robot index; broad ranges may favor a sequential scan. Top-good-task
+counts may benefit from a partial recorded_at/task index WHERE quality='good',
+after measuring with EXPLAIN ANALYZE. Median sorting costs grow with delivered
+requests. Frequent large reports would use cached results or daily summary tables;
+add time partitioning only if measurements justify it. No 5-million-row benchmark
+has been run. CSV import remains bounded and synchronous; large imports need a
+separate streaming/batch process.
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_analytics --verbosity 2
 ```

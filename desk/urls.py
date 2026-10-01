@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AnalyticsView,
     AssignmentRemoveView,
     CurrentUserView,
     EpisodeListView,
@@ -17,6 +18,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("analytics/", AnalyticsView.as_view(), name="analytics"),
     path("episodes/import/", EpisodeImportView.as_view(), name="episode-import"),
     path("episodes/", EpisodeListView.as_view(), name="episode-list"),
     path("requests/<int:pk>/assignments/", RequestAssignmentView.as_view(), name="request-assignments"),

@@ -116,3 +116,14 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+
+class AnalyticsRangeSerializer(serializers.Serializer):
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+
+    def validate(self, data):
+        if data["end_date"] < data["start_date"]:
+            raise serializers.ValidationError({"end_date": "Must be on or after start_date."})
+        if data["end_date"].year == 9999:
+            raise serializers.ValidationError({"end_date": "Choose a year before 9999."})
+        return data
