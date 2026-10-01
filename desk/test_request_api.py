@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.utils import timezone
@@ -33,7 +33,7 @@ class RequestAPITests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
 
     def request_input(self):
-        return {"task_name": "Pick Cup", "episodes_requested": 3, "deadline": "2026-10-03"}
+        return {"task_name": "Pick Cup", "episodes_requested": 3, "deadline": (timezone.localdate() + timedelta(days=1)).isoformat()}
 
     def change_status(self, new_status, pk=None):
         if pk is None:
@@ -64,6 +64,19 @@ class RequestAPITests(APITestCase):
         self.assertEqual((history.from_status, history.to_status), ("", "submitted"))
         self.assertEqual(history.changed_by, self.client_a)
         self.assertIsNotNone(history.changed_at)
+
+    def test_past_deadline_is_rejected_without_creating_request_or_history(self):
+        self.authenticate_as(self.client_a)
+        data = self.request_input()
+        data["deadline"] = (timezone.localdate() - timedelta(days=1)).isoformat()
+        before_requests = DatasetRequest.objects.count()
+        from .models import StatusChange
+        before_history = StatusChange.objects.count()
+        response = self.client.post("/api/requests/", data, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("deadline", response.data)
+        self.assertEqual(DatasetRequest.objects.count(), before_requests)
+        self.assertEqual(StatusChange.objects.count(), before_history)
 
     def test_operators_and_admins_cannot_create_client_requests(self):
         for user in [self.operator, self.admin]:

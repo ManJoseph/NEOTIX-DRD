@@ -10,7 +10,7 @@ Three decisions required the most care:
 2. **Messy imports without destructive updates.** Normalize IDs, tasks, robots, and quality, then keep the first valid row for an ID. Identical duplicates and conflicts have separate skip reasons. Updating existing metadata could silently change delivered datasets, so imports never overwrite it. Invalid rows are reported and skipped; malformed files fail before writes, and unexpected database errors roll back the import. The simple importer is synchronous and bounded to 5 MiB/10,000 records.
 3. **Meaning of analytics dates and delivery time.** Date ranges are inclusive Kigali dates. Requests form a submission-date cohort; counts show current status. Median time uses first delivery, including delivery after the selected range. Rework does not reset that timestamp. PostgreSQL performs aggregation, including a short parameterized SQL median query.
 
-Additional interpretations: assigned episodes must match the request's normalized task; duration cannot exceed one hour; future recordings are invalid; past request deadlines are allowed because the brief does not forbid them. Robots are restricted to the five supplied IDs.
+Additional interpretations: assigned episodes must match the request's normalized task; duration cannot exceed one hour; future recordings are invalid; new request deadlines must be today or later in Kigali time, following candidate review. Robots are restricted to the five supplied IDs.
 
 ## Simplifications and next steps
 

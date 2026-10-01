@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
+from unittest.mock import patch
 from decimal import Decimal
 
 from django.test import TestCase
@@ -32,7 +33,7 @@ class SerializerTests(TestCase):
         return {
             "task_name": "  Pick   Cup ",
             "episodes_requested": 2,
-            "deadline": "2026-10-03",
+            "deadline": (timezone.localdate() + timedelta(days=1)).isoformat(),
             "notes": "For robot training",
         }
 
@@ -52,7 +53,20 @@ class SerializerTests(TestCase):
         self.assertEqual(request.status, "submitted")
         self.assertIsNone(request.delivered_at)
         self.assertEqual(request.task_name, "pick cup")
-        self.assertEqual(request.deadline, date(2026, 10, 3))
+        self.assertEqual(request.deadline.isoformat(), data["deadline"])
+
+    def test_deadline_must_be_today_or_later_in_kigali(self):
+        # At 22:30 UTC on October 1, Kigali is already on October 2.
+        now = datetime(2026, 10, 1, 22, 30, tzinfo=datetime_timezone.utc)
+        with patch("django.utils.timezone.now", return_value=now):
+            for deadline, valid in [("2026-10-01", False), ("2026-10-02", True), ("2026-10-03", True)]:
+                with self.subTest(deadline=deadline):
+                    data = self.request_input()
+                    data["deadline"] = deadline
+                    serializer = DatasetRequestSerializer(data=data)
+                    self.assertEqual(serializer.is_valid(), valid, serializer.errors)
+                    if not valid:
+                        self.assertIn("deadline", serializer.errors)
 
     def test_invalid_request_input_returns_field_errors(self):
         for field, value in [

@@ -1,5 +1,6 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 
 from rest_framework import serializers
 
@@ -44,6 +45,11 @@ class DatasetRequestSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "client", "status", "created_at", "updated_at", "delivered_at",
         ]
+
+    def validate_deadline(self, value):
+        if value < timezone.localdate():
+            raise serializers.ValidationError("Deadline cannot be before today (Kigali time).")
+        return value
 
     def validate_task_name(self, value):
         # Treat "  Pick   Cup " and "pick cup" as the same task.

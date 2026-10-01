@@ -103,6 +103,8 @@ For the operator, choose a different username/email and `"role": "operator"`. Pa
 {"task_name":"pick cup","episodes_requested":1,"deadline":"2026-10-04","notes":"Training dataset"}
 ```
 
+Choose today or a future Kigali date for the deadline; the sample date above may need updating. Past deadlines return a 400 field error. Existing requests can become overdue without being changed.
+
 4. Save the returned request `id`. Using the operator token, POST its `/status/` URL with `{"status":"in_progress"}`.
 5. GET `/api/episodes/?task_name=pick%20cup&quality=good&available=true`. Choose a returned episode's numeric `id`. POST the request's `/assignments/` URL with `{"episode":12}`, substituting that ID. The external `episode_id` such as `EP00001` is not the assignment input ID.
 6. POST `/status/` with `{"status":"delivered"}`. Delivery requires at least the requested number of assignments.
@@ -221,7 +223,7 @@ The importer additionally rejects future recordings and durations above 3600 sec
 | client_id | ForeignKey(User) | FK, PROTECT | Owning client; supplied from authenticated caller |
 | task_name | CharField(200) | Normalized by serializer | Desired recording task |
 | episodes_requested | PositiveIntegerField | Validator and DB check >= 1 | Minimum episodes required for delivery |
-| deadline | DateField | Required; past dates permitted | Requested delivery date |
+| deadline | DateField | Required; API requires today or later in Kigali | Requested delivery date |
 | notes | TextField | Blank allowed | Extra instructions |
 | status | CharField(20) | Default submitted; five valid statuses; DB check | Current workflow state |
 | created_at | DateTimeField | Automatic on creation; indexed | Submission time |

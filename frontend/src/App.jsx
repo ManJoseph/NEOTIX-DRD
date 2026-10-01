@@ -1,5 +1,7 @@
 import { useState } from "react";
 import LoginForm from "./LoginForm";
+import ClientRequests from "./ClientRequests";
+import AdminUsers from "./AdminUsers";
 import { apiRequest } from "./api";
 
 export default function App() {
@@ -30,15 +32,20 @@ export default function App() {
         <p>Request, prepare, and review robot recording datasets.</p>
       </header>
       {!session ? <LoginForm onLogin={setSession} /> : (
-        <section className="card">
+        <>
+        <section className="card account-card">
           <h2>Welcome, {session.user.name || session.user.username}</h2>
           <p>Signed in as <strong>{session.user.role}</strong>.</p>
-          <p>Your request workspace will be added in the next stage.</p>
           {error && <p className="error" role="alert">{error}</p>}
           <button type="button" onClick={handleLogout} disabled={loggingOut}>
             {loggingOut ? "Signing out…" : "Sign out"}
           </button>
         </section>
+        {session.user.role === "admin" && <AdminUsers token={session.token} />}
+        {session.user.role === "client" ? <ClientRequests token={session.token} /> : (
+          <section className="card"><h2>Operator workspace</h2><p>The operator request and assignment screen is the next stage.</p></section>
+        )}
+        </>
       )}
     </main>
   );
