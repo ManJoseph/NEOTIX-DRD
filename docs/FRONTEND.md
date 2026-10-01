@@ -102,4 +102,4 @@ Reference: [MDN FormData uploads](https://developer.mozilla.org/en-US/docs/Web/A
 
 For one-command startup of both servers, use the [running guide](RUNNING.md). Vite reads the optional BACKEND_URL process environment value set by that launcher; normal npm run dev defaults to port 8000. CI builds the frontend on pushes and pull requests.
 
-Final checks: 99 backend tests passed, no missing migrations, frontend build passed, the real-server startup/proxy smoke test passed, and a one-off mocked browser workflow check passed with no JavaScript errors or mobile overflow. The mocked browser check used existing local testing tools and did not seed or change the development database. It is not a CI browser test.
+Final checks: 102 backend tests passed, no missing migrations, frontend build passed, the real-server startup/proxy smoke test passed, and a one-off mocked browser workflow check passed with no JavaScript errors or mobile overflow. The mocked browser check used existing local testing tools and did not seed or change the development database. It is not a CI browser test.

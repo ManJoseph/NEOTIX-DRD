@@ -39,7 +39,7 @@ Base URL: `http://127.0.0.1:8000`. Subsequent backend starts need only the `runs
 .\.venv\Scripts\python.exe manage.py test desk --noinput
 ```
 
-Tests create and remove a separate `test_<DB_NAME>` database; the configured database user needs permission to create it. They do not populate your development database. The final full backend run passed all 99 tests. To focus on one area, replace `desk` with, for example, `desk.test_csv_import` or `desk.test_request_api`.
+Tests create and remove a separate `test_<DB_NAME>` database; the configured database user needs permission to create it. They do not populate your development database. The final full backend run passed all 102 tests. To focus on one area, replace `desk` with, for example, `desk.test_csv_import` or `desk.test_request_api`.
 
 ## Authentication and roles
 

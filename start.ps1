@@ -63,19 +63,31 @@ try {
         $viteEntry = Join-Path $projectRoot "frontend\node_modules\vite\bin\vite.js"
         $viteArguments = "`"$viteEntry`" --host 127.0.0.1 --port $FrontendPort"
         $frontendProcess = Start-Process -FilePath (Get-Command node).Source -ArgumentList $viteArguments -WorkingDirectory (Join-Path $projectRoot "frontend") -WindowStyle Hidden -PassThru -RedirectStandardOutput "$logDirectory\frontend.log" -RedirectStandardError "$logDirectory\frontend-errors.log"
+        # Vite can start before Django on a fresh installation. Wait for both.
+        $ready = $false
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            if ($backendProcess.HasExited -or $frontendProcess.HasExited) { throw "A server exited during startup; inspect .run logs." }
+            $backendReady = $false
+            $frontendReady = $false
+            try {
+                Invoke-WebRequest -Uri "http://127.0.0.1:$BackendPort/health" -UseBasicParsing -TimeoutSec 2 | Out-Null
+            } catch {
+                # Health requires a token, so 401 confirms the API is accepting requests.
+                if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 401) { $backendReady = $true }
+            }
+            try {
+                $page = Invoke-WebRequest -Uri "http://127.0.0.1:$FrontendPort/" -UseBasicParsing -TimeoutSec 2
+                $frontendReady = $page.StatusCode -eq 200 -and $page.Content.Contains("NEOTIX")
+            } catch { }
+            if ($backendReady -and $frontendReady) { $ready = $true; break }
+            Start-Sleep -Seconds 1
+        }
+        if (-not $ready) { throw "Servers did not become ready; inspect .run logs." }
         Write-Host "Frontend: http://127.0.0.1:$FrontendPort"
         Write-Host "Backend: http://127.0.0.1:$BackendPort"
         Write-Host "Logs: .run/*.log. Keep this terminal open; Ctrl+C stops both servers."
 
         if ($SmokeTest) {
-            $ready = $false
-            for ($attempt = 0; $attempt -lt 30; $attempt++) {
-                try {
-                    $page = Invoke-WebRequest -Uri "http://127.0.0.1:$FrontendPort/" -UseBasicParsing -TimeoutSec 2
-                    if ($page.StatusCode -eq 200 -and $page.Content.Contains("NEOTIX")) { $ready = $true; break }
-                } catch { Start-Sleep -Seconds 1 }
-            }
-            if (-not $ready) { throw "Frontend did not become ready; inspect .run logs." }
             $validated = $false
             try {
                 Invoke-WebRequest -Uri "http://127.0.0.1:$FrontendPort/api/auth/login/" -Method Post -ContentType "application/json" -Body "{}" -UseBasicParsing -TimeoutSec 5 | Out-Null
