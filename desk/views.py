@@ -1,5 +1,5 @@
 from django.contrib.auth import authenticate
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -49,6 +49,8 @@ class LoginView(APIView):
                 {"detail": "Invalid username or password."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        # Also attach the credential-verified user for request logging.
+        request.user = user
         token, created = Token.objects.get_or_create(user=user)
         return Response({"token": token.key, "user": UserSerializer(user).data})
 
@@ -318,3 +320,11 @@ class AnalyticsView(APIView):
             serializer.validated_data["end_date"],
         )
         return Response(report)
+
+
+class HealthView(APIView):
+    def get(self, request):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        return Response({"status": "ok", "database": "ok"})

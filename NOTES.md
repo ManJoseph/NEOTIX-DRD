@@ -204,3 +204,22 @@ aggregation. No large-volume benchmark has been performed.
 Per the candidate's later instruction, demo users are not published or seeded.
 Normal createsuperuser plus admin API account creation is the testing workflow.
 seed/users.json remains local and ignored by Git.
+
+## Health and logging stage
+
+/health remains authenticated to follow the brief's every-action-except-login rule.
+It executes SELECT 1 to check PostgreSQL connectivity. The custom DRF exception
+handler maps OperationalError/InterfaceError to a generic 503 without connection
+or credential details, even when the error occurs during token authentication.
+Other errors retain DRF/Django handling. This is a connectivity check rather than
+complete schema readiness; migration readiness could be checked separately.
+
+The outer request middleware times each request using perf_counter and emits one
+JSON access line in finally. DRF attaches the user to the underlying Django request;
+login explicitly attaches its credential-verified user for logging. Failures without
+an authenticated user log null. Only path is logged, not query strings, headers,
+bodies, passwords, or tokens. Default Django request/server summaries are suppressed
+to avoid duplicate access lines. Full error stack capture is left for a production
+error-monitoring service; the current access log records status and timing.
+Tests cover authenticated/anonymous/denied requests, login, 404/500 paths, secret
+omission, and database failure responses. Full backend regression tests follow.

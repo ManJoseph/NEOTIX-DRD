@@ -45,6 +45,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "desk.middleware.RequestLoggingMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -127,6 +128,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Require login for API endpoints by default.
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "desk.exceptions.api_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
     ],
@@ -137,3 +139,22 @@ REST_FRAMEWORK = {
 
 # Use our user model, which adds the business role.
 AUTH_USER_MODEL = "desk.User"
+
+# Each request has one JSON access log, written to the terminal.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "message_only": {"format": "%(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "message_only"},
+        "null": {"class": "logging.NullHandler"},
+    },
+    "loggers": {
+        "desk.requests": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # Avoid Django's additional access/error summaries for the same request.
+        "django.server": {"handlers": ["null"], "propagate": False},
+        "django.request": {"handlers": ["null"], "propagate": False},
+    },
+}

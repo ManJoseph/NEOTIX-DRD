@@ -248,3 +248,28 @@ separate streaming/batch process.
 ```powershell
 .\.venv\Scripts\python.exe manage.py test desk.test_analytics --verbosity 2
 ```
+
+## Health and structured request logging
+
+GET /health with an Authorization: Token header. Like other protected endpoints,
+it requires authentication. A reachable database returns:
+
+```json
+{"status": "ok", "database": "ok"}
+```
+
+Database connection failures return 503 with a generic message, including failures
+while validating a token. This is a basic database-connectivity check, not a full
+check of every table or pending migration.
+
+Every request emits one JSON access log to the terminal with timestamp (UTC),
+method, path, status, duration_ms, and authenticated user_id (null when unknown).
+Successful login records the credential-verified user ID too. Bodies, passwords,
+tokens, and query strings are omitted. Django's duplicate request summaries are
+suppressed. Logs currently record access information rather than full stack traces;
+production error monitoring is a next improvement. Local *.log files are ignored.
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_operations --verbosity 2
+.\.venv\Scripts\python.exe manage.py test desk
+```
