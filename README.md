@@ -24,13 +24,14 @@ An episode can belong to only one current assignment. Only good or usable episod
 
 The backend uses Python, Django REST Framework, and PostgreSQL. It includes token authentication, account management, requests, assignments, repeat-safe CSV import, date-range analytics, health checks, structured logs, migrations, and automated tests.
 
-A small React frontend is the next milestone. The frontend guide will be added with that implementation. Startup for the whole system is also pending; current backend instructions describe local development.
+The React frontend currently provides login and logout. Client requests and operator assignment screens are the next milestones. Startup for the whole system is also pending; current backend instructions describe local development.
 
 ## Documentation and useful files
 
 | Start here | What you will find |
 | --- | --- |
 | [Backend guide](docs/BACKEND.md) | Installation, environment/database configuration, running tests, API reference, Postman walkthrough, model structure tables, ERD, and implementation explanations |
+| [Frontend guide](docs/FRONTEND.md) | Running React, frontend file structure, login flow, and current progress |
 | [Design notes](NOTES.md) | Decisions, assumptions, omissions, debugging, security, scale, and disclosed AI assistance |
 | [Episode resources](seed/README.md) | Supplied CSV fixture and optional larger-data generator |
 | [Dependency list](requirements.txt) | Pinned backend packages |

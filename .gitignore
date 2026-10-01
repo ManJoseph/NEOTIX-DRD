@@ -8,3 +8,7 @@ htmlcov/
 .idea/
 seed/users.json
 *.log
+
+# Frontend dependencies and build output
+node_modules/
+frontend/dist/
