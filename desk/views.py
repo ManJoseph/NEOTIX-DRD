@@ -6,9 +6,11 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .csv_import import import_episodes
 from .models import Assignment, DatasetRequest, Episode, EpisodeQuality, RequestStatus, StatusChange, User, UserRole
 from .pagination import DeskPagination
 from .permissions import IsAdmin, IsOperator
@@ -280,3 +282,24 @@ class AssignmentRemoveView(APIView):
             assignment = get_object_or_404(Assignment, pk=assignment_pk, request=dataset_request)
             assignment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EpisodeImportView(APIView):
+    permission_classes = [IsOperator]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            raise ValidationError({"file": "Upload a CSV file using the file field."})
+        if uploaded_file.size > 5 * 1024 * 1024:
+            raise ValidationError({"file": "CSV files must be at most 5 MiB."})
+        try:
+            text = uploaded_file.read().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raise ValidationError({"file": "The CSV file must use UTF-8 encoding."})
+        try:
+            report = import_episodes(text)
+        except ValueError as error:
+            raise ValidationError({"file": str(error)})
+        return Response(report)

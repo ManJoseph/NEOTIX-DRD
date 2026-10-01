@@ -15,7 +15,7 @@ Frontend: a small React application (to be added later).
 7. Run tests: `.\.venv\Scripts\python.exe manage.py test desk`
 8. Create an application admin: `.\.venv\Scripts\python.exe manage.py createsuperuser`
 
-The custom user model is configured. Endpoints and seed accounts will be added in later stages.
+The custom user model is configured. See the endpoint sections below. Automated seed accounts will be added in a later stage.
 Django tests use a separate test database; the local database user needs permission to create it.
 
 Never commit `.env`; it contains local secrets.
@@ -178,8 +178,40 @@ episode_details for reviewing metadata. Removal deletes only the assignment and
 releases its episode for reuse. Returned status is 204. After client rejection,
 return the request to in_progress before replacing episodes.
 
-CSV import is the next stage; the test data lives only in the separate test database.
+Import seed/episodes.csv using the endpoint below to populate your local inventory. Automated test data lives only in the separate test database.
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py test desk.test_assignment_api --verbosity 2
+```
+
+## CSV import (Postman)
+
+POST to /api/episodes/import/ using an operator/admin token.
+In Body > form-data, add key `file`, change its type from Text to File, and select
+seed/episodes.csv. Let Postman set the multipart Content-Type automatically;
+do not leave a manually set application/json Content-Type header on this request.
+
+The UTF-8 upload limit is 5 MiB and 10,000 data records per file. Responses contain
+imported, skipped, and skipped_rows (record number, episode_id, reason).
+The supplied file imports 172 episodes and skips 19 records into an empty database
+as of October 2026. Repeating the import adds zero and skips all 191 data records.
+A 200 response means the file was processed; inspect skipped rows for validation
+errors. File-level errors return 400 and cause no writes. API authorization failures
+return 401/403. Other database errors roll back the import and return a server error.
+
+Normalization trims values, uppercases episode IDs, lowercases robot/quality/task,
+and collapses task whitespace. Valid quality=bad is imported, but remains ineligible
+for assignment. Dates accept ISO timestamps and DD/MM/YYYY HH:MM. Offset-free
+values use Kigali time; explicit offsets are respected. Future recordings are
+rejected. All seven fields are required. Duration must be finite, positive, at most
+3600 seconds, and representable with two decimal places. Empty/malformed rows,
+unknown robots, unknown quality, and invalid values are reported as skipped.
+
+First valid episode_id wins. Identical duplicates and conflicts have distinct
+messages. Existing records are never overwritten, including assigned episodes.
+Row numbers count CSV records (header is record 1), rather than physical lines
+when quoted fields contain line breaks.
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_csv_import --verbosity 2
 ```

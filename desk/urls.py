@@ -4,6 +4,7 @@ from .views import (
     AssignmentRemoveView,
     CurrentUserView,
     EpisodeListView,
+    EpisodeImportView,
     RequestAssignmentView,
     LoginView,
     LogoutView,
@@ -16,6 +17,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("episodes/import/", EpisodeImportView.as_view(), name="episode-import"),
     path("episodes/", EpisodeListView.as_view(), name="episode-list"),
     path("requests/<int:pk>/assignments/", RequestAssignmentView.as_view(), name="request-assignments"),
     path("requests/<int:pk>/assignments/<int:assignment_pk>/", AssignmentRemoveView.as_view(), name="assignment-remove"),

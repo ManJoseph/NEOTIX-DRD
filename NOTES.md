@@ -148,3 +148,34 @@ changes with delivery counts. Database uniqueness remains a final guard, with an
 inner transaction savepoint for clean recovery from expected duplicate conflicts.
 Unexpected integrity errors are re-raised. No concurrency stress test has been run
 in this stage; sequential API conflicts and database uniqueness are tested.
+
+## CSV import decisions and debugging
+
+CSV import uses csv.reader, not manual comma splitting, so quoted commas work.
+The bounded file is parsed before writes, then valid rows are processed in one
+transaction. Errors in individual values/column counts are reported and skipped;
+CSV syntax/header errors cause no writes. Unexpected database failures roll back
+all rows. Up to 5 MiB and 10,000 data records are accepted synchronously. The
+importer loads the bounded CSV into memory and issues per-row database queries.
+This deliberately favors readable code; large imports would need streaming,
+batched database operations, background execution, and durable progress reports.
+
+IDs are uppercase; task names are lowercase with collapsed whitespace; robot IDs
+and quality are lowercase. Missing required values are rejected, including unknown
+operator names represented by blanks. We do not invent values. Quality=bad is a
+valid import, but cannot be assigned. Only the supplied five robots are allowed.
+ISO timestamps and DD/MM/YYYY HH:MM are accepted; naive timestamps use Kigali time,
+explicit offsets are respected, and future recordings are rejected. Duration uses
+Decimal with at most two places, is finite and positive, and cannot exceed 3600
+seconds. The one-hour ceiling is our documented interpretation of short clips.
+
+get_or_create uses the unique canonical episode_id. The first valid row is kept;
+identical repeats and conflicting data are reported distinctly. Conflicting rows
+never update stored metadata, avoiding accidental changes to assigned deliveries.
+The supplied export yields 172 imported and 19 skipped records initially; a repeat
+imports zero. Tests fix the clock for this fixture's future-date row.
+
+While implementing decimal validation, we identified that the model's minimum
+validator used the float 0.01. Binary floats are not exact decimals. We changed it
+to Decimal("0.01") and added a test that an exact 0.01-second duration passes.
+The change is captured in migration 0002; the stored field type is unchanged.

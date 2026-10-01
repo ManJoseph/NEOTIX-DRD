@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.validators import MinValueValidator
@@ -68,7 +70,7 @@ class Episode(models.Model):
     task_name = models.CharField(max_length=200)
     recorded_at = models.DateTimeField()
     duration_seconds = models.DecimalField(
-        max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)]
+        max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )
     operator_name = models.CharField(max_length=150)
     quality = models.CharField(max_length=10, choices=EpisodeQuality.choices)
