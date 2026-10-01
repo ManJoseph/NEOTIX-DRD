@@ -1,225 +1,45 @@
-# Design notes (work in progress)
+# Design notes
 
-## Data model
+## Design and decisions
 
-One Django app (`desk`) holds five models. User extends Django AbstractUser and
-adds name, organisation, and a client/operator/admin role. Username remains the
-standard login identifier; seed usernames will equal their email addresses.
-Email is unique. Passwords use Django's password hashing. Users are deactivated
-with is_active rather than deleted. createsuperuser also sets the business admin role.
+PostgreSQL is the source of truth for accounts, episode metadata, requests, assignments, and status history. `User` extends Django's user model with name, organisation, and a business role. Each request belongs to one client. An assignment links a request to an episode and records the assigning user/time. Each status change records its request, previous/new status, actor, and timestamp. The request stores current status and first delivery time; history preserves transitions. Django migrations manage the schema.
 
-A DatasetRequest belongs to one user (the API will require a client), and records
-the task, count, deadline, notes, current status, creation/update time, and first
-delivery time. First delivery time stays unchanged on rework, so analytics will
-measure submission to first delivery. StatusChange stores each transition, its
-actor, and timestamp, including an initial submission event with empty from_status.
-The API will write the status update and history event in one database transaction.
+Three decisions required the most care:
 
-Episode stores CSV metadata, not video files. episode_id is a unique external ID;
-the internal numeric id is used for relationships. Decimal durations preserve
-values such as 45.5 seconds. Known robots are a fixed list from the supplied pack.
+1. **Episode exclusivity and concurrent changes.** A one-to-one episode link prevents two current assignments at the database level. API transactions lock the request before assignment changes or delivery; assignment creation also locks its episode and repeats eligibility checks. Status and history are saved together. Removing an assignment releases the episode; accepted requests retain theirs. Removed assignments have no separate audit history. Sequential conflicts and database uniqueness are tested; concurrent load has not been stress-tested.
+2. **Messy imports without destructive updates.** Normalize IDs, tasks, robots, and quality, then keep the first valid row for an ID. Identical duplicates and conflicts have separate skip reasons. Updating existing metadata could silently change delivered datasets, so imports never overwrite it. Invalid rows are reported and skipped; malformed files fail before writes, and unexpected database errors roll back the import. The simple importer is synchronous and bounded to 5 MiB/10,000 records.
+3. **Meaning of analytics dates and delivery time.** Date ranges are inclusive Kigali dates. Requests form a submission-date cohort; counts show current status. Median time uses first delivery, including delivery after the selected range. Rework does not reset that timestamp. PostgreSQL performs aggregation, including a short parameterized SQL median query.
 
-Assignment links a request to one episode, with the assigning user and time.
-The episode link is unique, so concurrent assignments cannot claim the same
-episode twice. Removing an assignment releases that episode. Assignment removal
-will be allowed only while working on a request; assignments remain reserved
-after acceptance. Historical assignment tracking is outside this first version.
-PROTECT relationships prevent accidental deletion of referenced business records.
+Additional interpretations: assigned episodes must match the request's normalized task; duration cannot exceed one hour; future recordings are invalid; past request deadlines are allowed because the brief does not forbid them. Robots are restricted to the five supplied IDs.
 
-## Constraints and indexes
+## Simplifications and next steps
 
-Database checks reject unknown roles, statuses, qualities, and robots, non-positive
-episode duration, and requests with fewer than one requested episode. choices
-and validators also support readable validation errors, but save() does not
-automatically run full model validation. Database constraints provide another guard.
+Explicit APIView methods and ordinary serializers keep the code readable. Django auth/contenttypes support tables remain, but the Django admin website and sessions are disabled. There is no public signup; an initial admin is created with `createsuperuser`, then accounts through the admin API. At the candidate's request, demo credentials are not published and users are not automatically seeded. This differs from the brief's requested seeded-user setup.
 
-Primary keys and unique fields have indexes automatically. ForeignKey fields
-also have indexes; OneToOneField supplies a unique index. Explicit indexes are:
-- Episode (recorded_at, robot_id): date-range analytics and robot grouping input.
-- Episode (task_name, quality): episode selection by task and quality.
-- DatasetRequest created_at: date-range filtering for request analytics.
+At this backend milestone, React and a single clean-clone command starting database, migrations, accounts, API, and frontend are still pending. There is no Docker setup, CI, deployment, or optional stretch item. Account/history lists are unpaginated. Request editing/deletion, removed-assignment history, expiring tokens, asynchronous import, and full error monitoring are omitted.
 
-Indexes speed relevant reads but cost disk space and writes. A large date range
-may still require scanning many rows. Query plans and production data will guide
-further indexing; these indexes do not guarantee every aggregate is fast.
+With two more days, finish the small client/operator UI and reproducible startup, add CI, improve production configuration and token lifecycle, paginate remaining lists, and test competing assignments against PostgreSQL concurrently. Keep the core business rules ahead of optional features.
 
-Cross-table rules (eligible quality, client ownership, actor role, enough episodes
-for delivery) and valid workflow transitions belong in the API stage. A choices
-list restricts valid status names; it does not enforce transition order.
+## A problem found while building
 
-## Authentication and simplifications
+Duration validation originally used the float `0.01` as its minimum. Binary floating-point cannot represent that decimal exactly, making comparison with a decimal field unsafe at the boundary. During importer validation review, the minimum was changed to `Decimal("0.01")`; a regression test verifies that exactly 0.01 seconds is accepted. Migration 0002 records the validator change without changing the stored decimal type. Boundary checks matter even when normal values work.
 
-DRF database tokens are used without sessions or the Django admin website.
-Built-in tokens do not expire automatically. Logout will revoke the token.
-Use HTTPS in production. Django auth/contenttypes tables are retained to reuse
-the standard user framework; business authorization will check the role field.
+## Security
 
-## AI tooling
+Django hashes passwords and applies its password validators. Output serializers exclude passwords; account creation uses `create_user`, not direct plaintext storage. DRF database tokens authenticate every action except login. Logout and account deactivation revoke tokens. Tokens do not expire automatically and one token is shared across a user's logins. HTTPS is required for a production deployment. Secrets belong in ignored `.env` files, never source code.
 
-Codex helped explain the requirements, configure the project, and draft models,
-migrations, and tests. Work is reviewed in stages with the candidate. Remaining
-security, scale, omissions, and debugging notes will be completed as work proceeds.
+Explicit writable fields prevent callers from selecting request owners, assignment actors, or initial statuses. Server permissions and ownership-filtered queries protect every request route. Serializers/import validation give readable errors; database uniqueness/check constraints provide a final guard. SQL parameters protect analytics inputs. Logs omit credentials and bodies. Login has approximate per-IP throttling using local-memory cache.
 
-PostgreSQL also has Django-generated varchar_pattern_ops indexes on unique text
-fields (episode_id, username, email). The unique indexes enforce exact uniqueness;
-the extra pattern indexes support suitable text-prefix lookups such as startswith.
-All current indexes use PostgreSQL B-tree, its standard ordered lookup structure.
-The desk_user_groups and desk_user_user_permissions tables are join tables for
-inherited Django many-to-many relationships. auth_group_permissions joins groups
-to permissions. django_migrations records migration names and application times;
-django_content_type identifies models; authtoken_token connects a token to a user.
-There is no auth_user table because AUTH_USER_MODEL selects desk.User instead.
-There are no Django admin or session tables.
+The two main concerns are **token theft**, because a stolen long-lived bearer token grants access until revoked, and **broken object-level authorization**, because a missed ownership check could expose another client's dataset. Production improvements include short-lived/rotated credentials, HTTPS, shared-cache/edge rate limits, and continued ownership regression tests. Development DEBUG/localhost settings must be replaced before deployment; current logs are access records rather than complete error monitoring.
 
-## Serializer stage
+## Scale
 
-Serializers use explicit field lists. User output excludes passwords and Django
-permission flags. Episode and history serializers are output-only. Request input
-can set task, count, deadline, and notes; owner, status, and timestamps are read-only.
-Read-only input is ignored by DRF. The upcoming view must supply the authenticated
-client when saving and write initial history in the same transaction.
-Task names are lowercased and internal whitespace is collapsed; import and episode
-filtering will use the same convention. Dates are checked for valid date syntax;
-we have not imposed a rule against past deadlines because the brief does not require it.
-Assignment input accepts only an episode id. It rejects bad quality and existing
-assignments with readable errors. This pre-check cannot prevent concurrent claims;
-the upcoming view will also handle database uniqueness errors safely.
-RequestStatusSerializer accepts known status names only; transition rules and actor
-permissions remain for the upcoming workflow view. Serializers do not yet expose URLs.
+At 10× users, local-memory throttling becomes inconsistent across workers, and unpaginated account/history endpoints become less suitable. Use shared cache, pagination, measured database connection management, and multiple API workers. Assignment transactions deliberately serialize changes to the same request.
 
-Admin account input now uses separate creation and update serializers. Creation
-uses Django password validators and create_user to hash passwords; password is
-write-only. Only role and is_active are writable in the update serializer. Neither
-serializer accepts Django is_superuser/is_staff flags. These serializers do not
-check who is calling them: their views must be admin-only. There is no public signup.
+At 100× episodes, synchronous per-row import queries and broad analytics scans are likely early bottlenecks. Python analytics memory remains proportional to summary output, but PostgreSQL still does grouping and median sorting. The existing episode date/robot and task/quality indexes help relevant filters, not every large aggregation. Measure query plans; consider a partial date/task index for good episodes, cached daily aggregates, and streamed/batched background imports. Time partitioning should follow measurements. No large-volume benchmark has been run.
 
-## Authentication API stage
+## AI tooling and validation
 
-APIView classes use explicit get/post/patch methods. Login uses Django authenticate
-and reuses an existing DRF token. Invalid credentials and inactive users get the
-same 401 response. Logout deletes the current token. Admin-only permission checks
-the business role, not is_staff or is_superuser. Deactivation revokes the token;
-role changes are effective on subsequent requests because authentication reloads
-the user. Admins cannot deactivate/demote themselves. Account lists are currently
-unpaginated, acceptable for the small user set; pagination is a next improvement.
+OpenAI Codex assisted with understanding the brief, explanations, scaffolding, models, serializers, views, migrations, tests, debugging, and documentation. The candidate chose the stack and reviewed stages through questions about managers, constraints, authentication, ownership, transactions, import, and logging. AI assistance is disclosed rather than presented as unaided work; the candidate must still be able to explain and modify the submitted code.
 
-Login throttling limits attempts per IP using Django's local-memory cache. This
-is a development safeguard, not full brute-force protection. A multi-process
-production deployment needs shared cache and edge rate limiting; DRF throttling
-is approximate under concurrency. There is one token per user, so logout affects
-all clients using it. Login endpoint disables token authentication to allow login
-even if a caller sends a stale token. Seed users are still a later stage.
-
-## Request workflow stage
-
-One shared queryset helper restricts client access across request lists, detail,
-history, and transitions. Other clients' records return 404. Operators/admins can
-view all records but cannot create client requests or accept/reject deliveries.
-Request creation writes a submission event atomically. Status changes lock the
-request row with select_for_update, validate role and transition order, check the
-assigned count for delivery, and save status plus history in one transaction.
-Failure to write history rolls back the request creation or status update.
-
-The upcoming assignment/removal views must lock the same request row before
-changing its assignments; this coordinates those actions with delivery checks.
-The delivery threshold is at least the requested count. First delivery time is
-retained on rework. Request lists are paginated by 50. History is chronological
-and currently unpaginated because the expected event count per request is small.
-There are no generic update/delete request routes that could bypass the workflow.
-Tests cover every pair of statuses for each business role, ownership, the delivery
-threshold, rework timestamps, pagination, and rollback if audit creation fails.
-
-## Episode assignment stage
-
-Operators/admins browse inventory with exact normalized task/quality filters and
-optional assignment availability. Clients can only read assignments on owned
-requests. Inventory and assignment lists are paginated; assignment output embeds
-episode metadata, with select_related to avoid one episode query per assignment.
-
-Assignment creation/removal is restricted to in_progress, preventing changes to
-an already delivered selection. We require task names to match: this is a deliberate
-interpretation of client task requirements beyond the explicit quality/exclusivity
-rules. Rejected deliveries must return to in_progress for rework. Removal releases
-an episode; accepted deliveries continue reserving their episodes.
-
-Assignment creation locks the request first, then the episode, and rechecks quality
-and availability after the locks. The same request lock coordinates assignment
-changes with delivery counts. Database uniqueness remains a final guard, with an
-inner transaction savepoint for clean recovery from expected duplicate conflicts.
-Unexpected integrity errors are re-raised. No concurrency stress test has been run
-in this stage; sequential API conflicts and database uniqueness are tested.
-
-## CSV import decisions and debugging
-
-CSV import uses csv.reader, not manual comma splitting, so quoted commas work.
-The bounded file is parsed before writes, then valid rows are processed in one
-transaction. Errors in individual values/column counts are reported and skipped;
-CSV syntax/header errors cause no writes. Unexpected database failures roll back
-all rows. Up to 5 MiB and 10,000 data records are accepted synchronously. The
-importer loads the bounded CSV into memory and issues per-row database queries.
-This deliberately favors readable code; large imports would need streaming,
-batched database operations, background execution, and durable progress reports.
-
-IDs are uppercase; task names are lowercase with collapsed whitespace; robot IDs
-and quality are lowercase. Missing required values are rejected, including unknown
-operator names represented by blanks. We do not invent values. Quality=bad is a
-valid import, but cannot be assigned. Only the supplied five robots are allowed.
-ISO timestamps and DD/MM/YYYY HH:MM are accepted; naive timestamps use Kigali time,
-explicit offsets are respected, and future recordings are rejected. Duration uses
-Decimal with at most two places, is finite and positive, and cannot exceed 3600
-seconds. The one-hour ceiling is our documented interpretation of short clips.
-
-get_or_create uses the unique canonical episode_id. The first valid row is kept;
-identical repeats and conflicting data are reported distinctly. Conflicting rows
-never update stored metadata, avoiding accidental changes to assigned deliveries.
-The supplied export yields 172 imported and 19 skipped records initially; a repeat
-imports zero. Tests fix the clock for this fixture's future-date row.
-
-While implementing decimal validation, we identified that the model's minimum
-validator used the float 0.01. Binary floats are not exact decimals. We changed it
-to Decimal("0.01") and added a test that an exact 0.01-second duration passes.
-The change is captured in migration 0002; the stored field type is unchanged.
-
-## Analytics stage
-
-The operator/admin-only report uses inclusive Kigali dates and half-open timestamp
-filters: start midnight <= timestamp < midnight after end_date. Requests use their
-submission date; status counts are current status. Median is submission to first
-delivery for that cohort, regardless of eventual delivery date. Null delivery times
-are excluded. Top tasks use good episodes recorded in the selected range.
-
-Three ORM group/count queries and one parameterized PostgreSQL percentile_cont
-query calculate the report. Python handles only aggregate rows. We retained a short
-explicit SQL median query because Django has no built-in median aggregate; SQL
-parameters prevent date values from becoming executable query text. Ties in top
-five task counts are sorted by task name. Missing status groups are filled with zero.
-
-At 5 million episodes, broad date ranges still cost database scans/aggregation;
-indexing does not make global counts constant time. Measure query plans, consider
-a partial good-episode date/task index, and cache or precompute frequently requested
-daily totals. Median sorting and database IO are likely analytics bottlenecks.
-Tests cover odd/even medians, date boundaries, empty reports, access rules, and SQL
-aggregation. No large-volume benchmark has been performed.
-
-Per the candidate's later instruction, demo users are not published or seeded.
-Normal createsuperuser plus admin API account creation is the testing workflow.
-seed/users.json remains local and ignored by Git.
-
-## Health and logging stage
-
-/health remains authenticated to follow the brief's every-action-except-login rule.
-It executes SELECT 1 to check PostgreSQL connectivity. The custom DRF exception
-handler maps OperationalError/InterfaceError to a generic 503 without connection
-or credential details, even when the error occurs during token authentication.
-Other errors retain DRF/Django handling. This is a connectivity check rather than
-complete schema readiness; migration readiness could be checked separately.
-
-The outer request middleware times each request using perf_counter and emits one
-JSON access line in finally. DRF attaches the user to the underlying Django request;
-login explicitly attaches its credential-verified user for logging. Failures without
-an authenticated user log null. Only path is logged, not query strings, headers,
-bodies, passwords, or tokens. Default Django request/server summaries are suppressed
-to avoid duplicate access lines. Full error stack capture is left for a production
-error-monitoring service; the current access log records status and timing.
-Tests cover authenticated/anonymous/denied requests, login, 404/500 paths, secret
-omission, and database failure responses. Full backend regression tests follow.
+The last full backend test run passed 97 tests covering models, serializers, role/ownership permissions, the status transition matrix, assignment rules, import idempotency/rollback, analytics boundaries/medians, health, and logging. This is evidence for the backend behavior, not a claim of production readiness or completed frontend requirements.
