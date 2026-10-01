@@ -16,9 +16,9 @@ Additional interpretations: assigned episodes must match the request's normalize
 
 Explicit APIView methods and ordinary serializers keep the code readable. Django auth/contenttypes support tables remain, but the Django admin website and sessions are disabled. There is no public signup; an initial admin is created with `createsuperuser`, then accounts through the admin API. At the candidate's request, demo credentials are not published and users are not automatically seeded. This differs from the brief's requested seeded-user setup.
 
-At this backend milestone, React and a single clean-clone command starting database, migrations, accounts, API, and frontend are still pending. There is no Docker setup, CI, deployment, or optional stretch item. Account/history lists are unpaginated. Request editing/deletion, removed-assignment history, expiring tokens, asynchronous import, and full error monitoring are omitted.
+The React client/operator workflows and admin account creation are implemented. Browser workflow verification and a single clean-clone command starting database, migrations, accounts, API, and frontend are still pending. There is no Docker setup, CI, deployment, or optional stretch item. Account/history lists are unpaginated. Request editing/deletion, removed-assignment history, expiring tokens, asynchronous import, and full error monitoring are omitted.
 
-With two more days, finish the small client/operator UI and reproducible startup, add CI, improve production configuration and token lifecycle, paginate remaining lists, and test competing assignments against PostgreSQL concurrently. Keep the core business rules ahead of optional features.
+With two more days, verify the client/operator UI end to end, finish reproducible startup, add CI, improve production configuration and token lifecycle, paginate remaining lists, and test competing assignments against PostgreSQL concurrently. Keep the core business rules ahead of optional features.
 
 ## A problem found while building
 

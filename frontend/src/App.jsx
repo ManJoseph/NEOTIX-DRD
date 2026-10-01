@@ -2,6 +2,7 @@ import { useState } from "react";
 import LoginForm from "./LoginForm";
 import ClientRequests from "./ClientRequests";
 import AdminUsers from "./AdminUsers";
+import OperatorRequests from "./OperatorRequests";
 import { apiRequest } from "./api";
 
 export default function App() {
@@ -43,7 +44,7 @@ export default function App() {
         </section>
         {session.user.role === "admin" && <AdminUsers token={session.token} />}
         {session.user.role === "client" ? <ClientRequests token={session.token} /> : (
-          <section className="card"><h2>Operator workspace</h2><p>The operator request and assignment screen is the next stage.</p></section>
+          <OperatorRequests token={session.token} />
         )}
         </>
       )}

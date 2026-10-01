@@ -4,8 +4,13 @@ export async function apiRequest(path, method = "GET", data = null, token = "") 
   if (token) {
     headers.Authorization = `Token ${token}`;
   }
-  if (data !== null) {
+  let body;
+  if (data instanceof FormData) {
+    // The browser supplies the multipart Content-Type and boundary for uploads.
+    body = data;
+  } else if (data !== null) {
     headers["Content-Type"] = "application/json";
+    body = JSON.stringify(data);
   }
 
   let response;
@@ -13,7 +18,7 @@ export async function apiRequest(path, method = "GET", data = null, token = "") 
     response = await fetch(path, {
       method,
       headers,
-      body: data === null ? undefined : JSON.stringify(data),
+      body,
     });
   } catch {
     throw new Error("Cannot reach the server. Check your connection and try again.");

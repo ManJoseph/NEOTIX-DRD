@@ -24,7 +24,7 @@ An episode can belong to only one current assignment. Only good or usable episod
 
 The backend uses Python, Django REST Framework, and PostgreSQL. It includes token authentication, account management, requests, assignments, repeat-safe CSV import, date-range analytics, health checks, structured logs, migrations, and automated tests.
 
-The React frontend provides login/logout and the client request workflow. The operator request and assignment screen is the next milestone. Startup for the whole system is also pending; current backend instructions describe local development.
+The React frontend provides login/logout, client request creation/review, operator request and assignment workflows, and admin account creation. Startup for the whole system is also pending; current backend instructions describe local development.
 
 ## Documentation and useful files
 
