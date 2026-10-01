@@ -8,3 +8,12 @@ class IsAdmin(BasePermission):
 
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == UserRole.ADMIN
+
+class IsOperator(BasePermission):
+    message = "Only operators and admins can perform this action."
+
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.role in [UserRole.OPERATOR, UserRole.ADMIN]
+        )

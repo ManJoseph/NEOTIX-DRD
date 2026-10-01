@@ -1,7 +1,10 @@
 from django.urls import path
 
 from .views import (
+    AssignmentRemoveView,
     CurrentUserView,
+    EpisodeListView,
+    RequestAssignmentView,
     LoginView,
     LogoutView,
     RequestDetailView,
@@ -13,6 +16,9 @@ from .views import (
 )
 
 urlpatterns = [
+    path("episodes/", EpisodeListView.as_view(), name="episode-list"),
+    path("requests/<int:pk>/assignments/", RequestAssignmentView.as_view(), name="request-assignments"),
+    path("requests/<int:pk>/assignments/<int:assignment_pk>/", AssignmentRemoveView.as_view(), name="assignment-remove"),
     path("requests/", RequestListCreateView.as_view(), name="request-list-create"),
     path("requests/<int:pk>/", RequestDetailView.as_view(), name="request-detail"),
     path("requests/<int:pk>/history/", RequestHistoryView.as_view(), name="request-history"),

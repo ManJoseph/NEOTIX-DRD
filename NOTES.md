@@ -128,3 +128,23 @@ and currently unpaginated because the expected event count per request is small.
 There are no generic update/delete request routes that could bypass the workflow.
 Tests cover every pair of statuses for each business role, ownership, the delivery
 threshold, rework timestamps, pagination, and rollback if audit creation fails.
+
+## Episode assignment stage
+
+Operators/admins browse inventory with exact normalized task/quality filters and
+optional assignment availability. Clients can only read assignments on owned
+requests. Inventory and assignment lists are paginated; assignment output embeds
+episode metadata, with select_related to avoid one episode query per assignment.
+
+Assignment creation/removal is restricted to in_progress, preventing changes to
+an already delivered selection. We require task names to match: this is a deliberate
+interpretation of client task requirements beyond the explicit quality/exclusivity
+rules. Rejected deliveries must return to in_progress for rework. Removal releases
+an episode; accepted deliveries continue reserving their episodes.
+
+Assignment creation locks the request first, then the episode, and rechecks quality
+and availability after the locks. The same request lock coordinates assignment
+changes with delivery counts. Database uniqueness remains a final guard, with an
+inner transaction savepoint for clean recovery from expected duplicate conflicts.
+Unexpected integrity errors are re-raised. No concurrency stress test has been run
+in this stage; sequential API conflicts and database uniqueness are tested.

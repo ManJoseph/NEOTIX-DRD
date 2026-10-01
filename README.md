@@ -148,3 +148,38 @@ Run workflow tests:
 ```powershell
 .\.venv\Scripts\python.exe manage.py test desk.test_request_api --verbosity 2
 ```
+
+## Episode and assignment API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | /api/episodes/ | Operator/admin episode inventory |
+| GET | /api/requests/<id>/assignments/ | Assignments for a visible request |
+| POST | /api/requests/<id>/assignments/ | Operator/admin assigns an episode |
+| DELETE | /api/requests/<id>/assignments/<assignment-id>/ | Operator/admin removes an assignment |
+
+Inventory example: /api/episodes/?task_name=pick%20cup&quality=good&available=true
+Filters are exact matches after normalizing casing/whitespace. Quality accepts
+good/usable/bad. available=true means unassigned; available=false means assigned.
+An available episode can still have bad quality, so use the quality filter too.
+Episode and assignment lists use the same 50-record paginated response as requests.
+Clients cannot browse inventory but can read assignment metadata for their own requests.
+
+Assign using the episode's internal numeric id from inventory results:
+
+```json
+{"episode": 12}
+```
+
+Assignments only change while the request is in_progress. Eligible episodes have
+good/usable quality, the same task as the request, and no existing assignment.
+The URL chooses the request and the token chooses the operator. Responses include
+episode_details for reviewing metadata. Removal deletes only the assignment and
+releases its episode for reuse. Returned status is 204. After client rejection,
+return the request to in_progress before replacing episodes.
+
+CSV import is the next stage; the test data lives only in the separate test database.
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test desk.test_assignment_api --verbosity 2
+```

@@ -54,10 +54,11 @@ class AssignmentSerializer(serializers.ModelSerializer):
     # An operator submits the episode's internal numeric id.
     episode = serializers.PrimaryKeyRelatedField(queryset=Episode.objects.all())
     episode_id = serializers.CharField(source="episode.episode_id", read_only=True)
+    episode_details = EpisodeSerializer(source="episode", read_only=True)
 
     class Meta:
         model = Assignment
-        fields = ["id", "request", "episode", "episode_id", "assigned_by", "assigned_at"]
+        fields = ["id", "request", "episode", "episode_id", "episode_details", "assigned_by", "assigned_at"]
         read_only_fields = ["id", "request", "assigned_by", "assigned_at"]
 
     def validate_episode(self, episode):

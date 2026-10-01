@@ -9,11 +9,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import DatasetRequest, RequestStatus, StatusChange, User, UserRole
-from .pagination import RequestPagination
-from .permissions import IsAdmin
+from .models import Assignment, DatasetRequest, Episode, EpisodeQuality, RequestStatus, StatusChange, User, UserRole
+from .pagination import DeskPagination
+from .permissions import IsAdmin, IsOperator
 from .serializers import (
+    AssignmentSerializer,
     DatasetRequestSerializer,
+    EpisodeSerializer,
     LoginSerializer,
     RequestStatusSerializer,
     StatusChangeSerializer,
@@ -115,7 +117,7 @@ def requests_visible_to(user):
 class RequestListCreateView(APIView):
     def get(self, request):
         requests = requests_visible_to(request.user).order_by("-created_at", "-id")
-        paginator = RequestPagination()
+        paginator = DeskPagination()
         page = paginator.paginate_queryset(requests, request)
         serializer = DatasetRequestSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
@@ -201,3 +203,80 @@ class RequestStatusView(APIView):
                 changed_by=request.user,
             )
         return Response(DatasetRequestSerializer(dataset_request).data)
+
+
+class EpisodeListView(APIView):
+    permission_classes = [IsOperator]
+
+    def get(self, request):
+        episodes = Episode.objects.order_by("id")
+        task_name = request.query_params.get("task_name")
+        quality = request.query_params.get("quality")
+        available = request.query_params.get("available")
+        if task_name is not None:
+            task_name = " ".join(task_name.split()).lower()
+            episodes = episodes.filter(task_name=task_name)
+        if quality is not None:
+            quality = quality.strip().lower()
+            if quality not in EpisodeQuality.values:
+                raise ValidationError({"quality": "Choose good, usable, or bad."})
+            episodes = episodes.filter(quality=quality)
+        if available is not None:
+            available = available.strip().lower()
+            if available not in ["true", "false"]:
+                raise ValidationError({"available": "Choose true or false."})
+            episodes = episodes.filter(assignment__isnull=(available == "true"))
+        paginator = DeskPagination()
+        page = paginator.paginate_queryset(episodes, request)
+        return paginator.get_paginated_response(EpisodeSerializer(page, many=True).data)
+
+
+class RequestAssignmentView(APIView):
+    def get(self, request, pk):
+        dataset_request = get_object_or_404(requests_visible_to(request.user), pk=pk)
+        assignments = dataset_request.assignments.select_related("episode").order_by("id")
+        paginator = DeskPagination()
+        page = paginator.paginate_queryset(assignments, request)
+        return paginator.get_paginated_response(AssignmentSerializer(page, many=True).data)
+
+    def post(self, request, pk):
+        if request.user.role not in [UserRole.OPERATOR, UserRole.ADMIN]:
+            raise PermissionDenied("Only operators and admins can assign episodes.")
+        with transaction.atomic():
+            dataset_request = get_object_or_404(DatasetRequest.objects.select_for_update(), pk=pk)
+            if dataset_request.status != RequestStatus.IN_PROGRESS:
+                raise ValidationError("Assignments can only change while the request is in progress.")
+            serializer = AssignmentSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            episode = get_object_or_404(
+                Episode.objects.select_for_update(), pk=serializer.validated_data["episode"].pk,
+            )
+            # Recheck after locking: another operator could have acted after validation.
+            if episode.quality not in [EpisodeQuality.GOOD, EpisodeQuality.USABLE]:
+                raise ValidationError({"episode": "Only good or usable episodes can be assigned."})
+            if episode.task_name != dataset_request.task_name:
+                raise ValidationError({"episode": "The episode task must match the request task."})
+            if Assignment.objects.filter(episode=episode).exists():
+                raise ValidationError({"episode": "This episode is already assigned to a request."})
+            try:
+                # A savepoint lets us safely recover from an expected unique conflict.
+                with transaction.atomic():
+                    assignment = serializer.save(request=dataset_request, episode=episode, assigned_by=request.user)
+            except IntegrityError:
+                if Assignment.objects.filter(episode=episode).exists():
+                    raise ValidationError({"episode": "This episode is already assigned to a request."})
+                raise
+        return Response(AssignmentSerializer(assignment).data, status=status.HTTP_201_CREATED)
+
+
+class AssignmentRemoveView(APIView):
+    permission_classes = [IsOperator]
+
+    def delete(self, request, pk, assignment_pk):
+        with transaction.atomic():
+            dataset_request = get_object_or_404(DatasetRequest.objects.select_for_update(), pk=pk)
+            if dataset_request.status != RequestStatus.IN_PROGRESS:
+                raise ValidationError("Assignments can only change while the request is in progress.")
+            assignment = get_object_or_404(Assignment, pk=assignment_pk, request=dataset_request)
+            assignment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
