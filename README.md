@@ -42,7 +42,7 @@ Run all backend tests with:
 .\.venv\Scripts\python.exe manage.py test desk --noinput
 ```
 
-The database user needs permission to create Django's separate test database. CI also runs these tests and builds React.
+The database user needs permission to create Django's separate test database. CI also runs these tests and builds React. All 102 tests passed, and first-run startup was verified from a fresh remote clone against a new database; see the running guide for the verification record.
 
 ## Reviewer login credentials
 

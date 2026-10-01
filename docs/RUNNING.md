@@ -47,3 +47,10 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1 -SmokeTest -BackendPort 800
 ```
 
 CI runs backend tests, checks for missing migrations, and builds React using an isolated PostgreSQL service. Its clearly labelled database password is a disposable CI fixture, not an application login or production credential. No deployment stretch item is claimed.
+
+## Fresh-clone verification
++
++Verified on 1 October 2026 using remote commit `2cdfe52`, an empty clone directory, and a new PostgreSQL database. The clone initially contained no `.env`, `.venv`, frontend dependencies, or runtime files. Database connection values were supplied privately through process environment variables; the launcher generated `.env` and its Django secret on first run. Python, Node, and PostgreSQL were already installed as documented prerequisites.
++
++The single startup command installed dependencies, created the database, applied all migrations, seeded four reviewer users, built React, waited for both servers, and passed the smoke checks for the frontend page, API proxy, reviewer logins/roles, database health, and logout. The launcher then stopped its servers. Git confirmed credentials, dependencies, and runtime artifacts were ignored, with no tracked changes in the clone. CI passed all 102 backend tests and the frontend build. This verifies a clean clone on the development Windows machine, not a new operating-system installation.
++
