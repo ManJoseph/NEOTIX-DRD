@@ -4,7 +4,7 @@ Return to the [project overview](../README.md). Django setup, accounts, and API 
 
 ## Current stage
 
-The frontend provides login/logout and a client workspace for creating requests, listing their requests with pagination, and accepting/rejecting delivered requests. Admins can also create accounts and list users. Operators/admins can list all requests, import CSV metadata, manage operational status, and assign/remove episodes. This covers the required client/operator screens; whole-system startup and browser workflow verification remain separate work.
+The frontend provides login/logout and a client workspace for creating requests, listing their requests with pagination, and accepting/rejecting delivered requests. Admins can also create accounts and list users. Operators/admins can list all requests, import CSV metadata, manage operational status, and assign/remove episodes. This covers the required client/operator screens; the running guide provides whole-system startup. Browser workflow verification is tracked separately.
 
 ## Run locally
 
@@ -88,7 +88,7 @@ Assign adds an episode using its numeric ID; Remove deletes the assignment using
 
 After delivery, assignment editing disappears. The client reviews through their own screen. On rejection, the operator starts rework before changing the selected episodes. Each list has its own pagination controls. `key={selectedId}` resets the detail component's state when opening another request. Effect cleanup prevents older fetch responses from replacing the newly selected screen's data.
 
-If inventory is empty, upload `seed/episodes.csv` using Import episode metadata before testing assignments. Manual checks: start work, assign an eligible episode, remove it, verify delivery stays disabled below the required count, deliver, reject as the client, refresh as operator, start rework, and deliver again. Check more than 50 records to verify pagination. Full browser workflow verification is still pending; compilation alone does not verify these actions.
+If inventory is empty, upload `seed/episodes.csv` using Import episode metadata before testing assignments. Manual checks: start work, assign an eligible episode, remove it, verify delivery stays disabled below the required count, deliver, reject as the client, refresh as operator, start rework, and deliver again. Check more than 50 records to verify pagination. A headless browser smoke check with mocked API responses passed these actions, including rejection/rework/acceptance. A full browser test against a real isolated database remains future work; compilation alone does not verify these actions.
 
 ## CSV upload stage
 
@@ -99,3 +99,7 @@ The report displays imported/skipped totals and each skipped record's number, ID
 Manual checks: upload the supplied fixture, inspect invalid and duplicate reasons, upload it again and verify zero new imports, try an invalid header, and try an oversized file. Confirm that the same token is required for uploads and that clients do not see the import form. File-level errors show on the form without a misleading old report. The backend CSV tests cover parsing, limits, normalization, duplicate conflicts, idempotency, and rollback.
 
 Reference: [MDN FormData uploads](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest_API/Using_FormData_Objects).
+
+For one-command startup of both servers, use the [running guide](RUNNING.md). Vite reads the optional BACKEND_URL process environment value set by that launcher; normal npm run dev defaults to port 8000. CI builds the frontend on pushes and pull requests.
+
+Final checks: 99 backend tests passed, no missing migrations, frontend build passed, the real-server startup/proxy smoke test passed, and a one-off mocked browser workflow check passed with no JavaScript errors or mobile overflow. The mocked browser check used existing local testing tools and did not seed or change the development database. It is not a CI browser test.

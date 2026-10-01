@@ -8,8 +8,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      "/api": "http://127.0.0.1:8000",
-      "/health": "http://127.0.0.1:8000",
+      "/api": process.env.BACKEND_URL || "http://127.0.0.1:8000",
+      "/health": process.env.BACKEND_URL || "http://127.0.0.1:8000",
     },
   },
 });

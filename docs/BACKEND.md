@@ -39,7 +39,7 @@ Base URL: `http://127.0.0.1:8000`. Subsequent backend starts need only the `runs
 .\.venv\Scripts\python.exe manage.py test desk --noinput
 ```
 
-Tests create and remove a separate `test_<DB_NAME>` database; the configured database user needs permission to create it. They do not populate your development database. The last full backend run passed all 97 tests. To focus on one area, replace `desk` with, for example, `desk.test_csv_import` or `desk.test_request_api`.
+Tests create and remove a separate `test_<DB_NAME>` database; the configured database user needs permission to create it. They do not populate your development database. The final full backend run passed all 99 tests. To focus on one area, replace `desk` with, for example, `desk.test_csv_import` or `desk.test_request_api`.
 
 ## Authentication and roles
 
@@ -385,4 +385,6 @@ Test modules cover models, serializers, auth/admin, requests, assignments, CSV, 
 
 ## Operational limits
 
-Login throttling uses a process-local cache and is approximate. Production needs a shared cache and stronger rate limiting. `/health` is authenticated and checks connectivity, not full schema readiness. JSON access logs omit sensitive input; comprehensive error monitoring remains future work. Tokens are long-lived and shared per user. Development settings are not a deployment configuration. Frontend and whole-system startup remain separate remaining milestones.
+Login throttling uses a process-local cache and is approximate. Production needs a shared cache and stronger rate limiting. `/health` is authenticated and checks connectivity, not full schema readiness. JSON access logs omit sensitive input; comprehensive error monitoring remains future work. Tokens are long-lived and shared per user. Development settings are not a deployment configuration. Frontend workflows are implemented; see the frontend guide. The running guide describes whole-system local startup.
+
+For one-command local startup and first-admin creation, see the [running guide](RUNNING.md). CI checks migrations and runs the full backend test suite against PostgreSQL.
